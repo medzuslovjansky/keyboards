@@ -7,19 +7,19 @@ cat /usr/share/X11/xkb/rules/evdev.lst | grep " isv" -c > /dev/null
 if [[ $? == 1 ]]; then
     isv="isv"
     echo "Check completed. Starting installation..."
-	echo "Prověrka ukončena. Početok ustavjenja..."
+    echo "Prověrka ukončena. Početok ustavjenja..."
     echo "Провєрка укончена. Почеток уставјенја..."
-	echo "-----------------------------------------"
+    echo "-----------------------------------------"
   else
     echo "The keyboard is probably already installed. Want to reinstall your keyboard side by side?"
-	echo "Klaviatura, věrojetno, už ustanovjena. Hočete li iznova ustaviti klaviaturu poblizu?"
+    echo "Klaviatura, věrojetno, už ustanovjena. Hočete li iznova ustaviti klaviaturu poblizu?"
     echo "Клавиатура, вєројетно, уж установјена. Хочете ли изнова уставити клавиатуру поблизу?"
     echo "-----------------------------------------------------------------------------------------"
-	echo "Type y/Y/yes/Yes to install or another character to exit:"
-	echo "Natipkate y/Y/yes/Yes za ustavjenja ili inaky simbol za izhoda:"
+    echo "Type y/Y/yes/Yes to install or another character to exit:"
+    echo "Natipkate y/Y/yes/Yes za ustavjenja ili inaky simbol za izhoda:"
     echo "Натипкате y/Y/yes/Yes за уставјенја или инакы симбол за изхода:"
-	echo "---------------------------------------------------------------"
-	read key
+    echo "---------------------------------------------------------------"
+    read key
 	  if [[ $key == "y" || $key == "Y" || $key == "yes" || $key == "Yes" ]]; then
 	    #We get the number of the new installation
 		cnt="$(ls /usr/share/X11/xkb/symbols/ | grep -c "isv")"
@@ -28,10 +28,10 @@ if [[ $? == 1 ]]; then
 	    isv="isv"$( echo $num | sed 's/1/q/' | sed 's/2/w/' | sed 's/3/e/' | sed 's/4/r/' | sed 's/5/t/' | sed 's/6/y/' | sed 's/7/u/' | sed 's/8/i/' | sed 's/9/o/' | sed 's/0/p/' )
 	  else
 	    echo "Exit"
-		echo "Izhod"
-        echo "Изход"
-		echo "-----"
-		exit 0
+	    echo "Izhod"
+            echo "Изход"
+	    echo "-----"
+	    exit 0
 	  fi 
 fi
 

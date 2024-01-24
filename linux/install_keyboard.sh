@@ -22,9 +22,9 @@ if [[ $? == 1 ]]; then
     read key
 	  if [[ $key == "y" || $key == "Y" || $key == "yes" || $key == "Yes" ]]; then
 	    #We get the number of the new installation
-		cnt="$(ls /usr/share/X11/xkb/symbols/ | grep -c "isv")"
-		num=$(( $cnt + 1 ))
-		#Converting the number to alphabetic form
+	    cnt="$(ls /usr/share/X11/xkb/symbols/ | grep -c "isv")"
+	    num=$(( $cnt + 1 ))
+	    #Converting the number to alphabetic form
 	    isv="isv"$( echo $num | sed 's/1/q/' | sed 's/2/w/' | sed 's/3/e/' | sed 's/4/r/' | sed 's/5/t/' | sed 's/6/y/' | sed 's/7/u/' | sed 's/8/i/' | sed 's/9/o/' | sed 's/0/p/' )
 	  else
 	    echo "Exit"

@@ -1,14 +1,56 @@
 #!/bin/bash
+echo "Preparation stage. Examination..."
+echo "Početkovy etap. Prověrka..."
+echo "Почетковы етап. Провєрка..."
+echo "---------------------------------"
+cat /usr/share/X11/xkb/rules/evdev.lst | grep " isv" -c > /dev/null
+if [[ $? == 1 ]]; then
+    isv="isv"
+    echo "Check completed. Starting installation..."
+    echo "Prověrka ukončena. Početok ustavjenja..."
+    echo "Провєрка укончена. Почеток уставјенја..."
+    echo "-----------------------------------------"
+  else
+    echo "The keyboard is probably already installed. Want to reinstall your keyboard side by side?"
+    echo "Klaviatura, věrojetno, už ustanovjena. Hočete li iznova ustaviti klaviaturu poblizu?"
+    echo "Клавиатура, вєројетно, уж установјена. Хочете ли изнова уставити клавиатуру поблизу?"
+    echo "-----------------------------------------------------------------------------------------"
+    echo "Type y/Y/yes/Yes to install or another character to exit:"
+    echo "Natipkate y/Y/yes/Yes za ustavjenja ili inaky simbol za izhoda:"
+    echo "Натипкате y/Y/yes/Yes за уставјенја или инакы симбол за изхода:"
+    echo "---------------------------------------------------------------"
+    read key
+	  if [[ $key == "y" || $key == "Y" || $key == "yes" || $key == "Yes" ]]; then
+	    #We get the number of the new installation
+	    cnt="$(ls /usr/share/X11/xkb/symbols/ | grep -c "isv")"
+	    num=$(( $cnt + 1 ))
+	    #Converting the number to alphabetic form
+	    isv="isv"$( echo $num | sed 's/1/q/' | sed 's/2/w/' | sed 's/3/e/' | sed 's/4/r/' | sed 's/5/t/' | sed 's/6/y/' | sed 's/7/u/' | sed 's/8/i/' | sed 's/9/o/' | sed 's/0/p/' )
+	  else
+	    echo "Exit"
+	    echo "Izhod"
+            echo "Изход"
+	    echo "-----"
+	    exit 0
+	  fi 
+fi
+
 echo "|..... 0%| Upgrading the evdev.lst file"
-sed -ie "/^! layout/a\  isv             Interslavic" /usr/share/X11/xkb/rules/evdev.lst
-sed -ie "/^! variant/a\  cyrillic        isv: Interslavic (Cyrillic)" /usr/share/X11/xkb/rules/evdev.lst
-sed -ie "/^! variant/a\  latin           isv: Interslavic (Latin)" /usr/share/X11/xkb/rules/evdev.lst
+echo "|..... 0%| Оbnovjenje fajla evdev.lst"
+echo "|..... 0%| Обновјенје фајла evdev.lst"
+sed -ie "/^! layout/a\  $isv             Interslavic" /usr/share/X11/xkb/rules/evdev.lst
+isvc=$isv": Interslavic (Cyrillic)"
+sed -ie "/^! variant/a\  cyrillic        $isvc" /usr/share/X11/xkb/rules/evdev.lst
+isvl=$isv": Interslavic (Latin)"
+sed -ie "/^! variant/a\  latin           $isvl" /usr/share/X11/xkb/rules/evdev.lst
 
 echo "|#.... 20%| Upgrading the evdev.xml file"
+echo "|#.... 20%| Оbnovjenje fajla evdev.xml"
+echo "|#.... 20%| Обновјенје фајла evdev.xml"
 cat >> /usr/share/X11/xkb/rules/evdev.xml << EOL
     <layout>
       <configItem>
-        <name>isv</name>
+        <name>$isv</name>
         <!-- Keyboard indicator for Interslavic layouts -->
         <shortDescription>isv</shortDescription>
         <description>Interslavic</description>
@@ -34,11 +76,15 @@ cat >> /usr/share/X11/xkb/rules/evdev.xml << EOL
 EOL
 
 echo "|###.. 60%| Writing the file of symbols"
-tail -n +44 "$0" > /usr/share/X11/xkb/symbols/isv
-chown root:root /usr/share/X11/xkb/symbols/isv
-chmod 0644 /usr/share/X11/xkb/symbols/isv
+echo "|###.. 60%| Zapis fajla s simbolami"
+echo "|###.. 60%| Запис фајла с симболами"
+tail -n +90 "$0" > /usr/share/X11/xkb/symbols/$isv
+chown root:root /usr/share/X11/xkb/symbols/$isv
+chmod 0644 /usr/share/X11/xkb/symbols/$isv
 
-echo "|##### 100%| Done! Reboot your computer."
+echo "|##### 100%| Done! Reboot your computer!"
+echo "|##### 100%| Gotovo! Iznova dodate vaš kompjuter!"
+echo "|##### 100%| Готово! Изнова додате ваш компјутер!"
 exit 0
 #####
 // Keyboard layouts for Interslavic Language.

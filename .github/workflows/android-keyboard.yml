@@ -1,0 +1,30 @@
+name: Android Keyboard Layout
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-keyboard.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-keyboard.yml'
+
+jobs:
+  # Placeholder for future Android keyboard layout implementation
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Placeholder step
+        run: echo "Android keyboard layout implementation pending"

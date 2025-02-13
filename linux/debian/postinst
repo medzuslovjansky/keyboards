@@ -1,0 +1,56 @@
+#!/bin/sh
+set -e
+
+# Source debconf library if available
+if [ -f /usr/share/debconf/confmodule ]; then
+    . /usr/share/debconf/confmodule
+fi
+
+case "$1" in
+    configure)
+        # Ensure target directories exist
+        for dir in /usr/share/X11/xkb/symbols /usr/share/X11/xkb/rules; do
+            if [ ! -d "$dir" ]; then
+                echo "Error: Required directory $dir does not exist" >&2
+                exit 1
+            fi
+        done
+
+        # Install layout file
+        if [ ! -f /usr/share/X11/xkb/symbols/isv ]; then
+            echo "Error: Layout file not found" >&2
+            exit 1
+        fi
+        install -m 644 /usr/share/X11/xkb/symbols/isv /usr/share/X11/xkb/symbols/isv
+
+        # Install and run XML patcher
+        if [ ! -f /usr/share/X11/xkb/rules/patch-evdev.sh ]; then
+            echo "Error: Patcher script not found" >&2
+            exit 1
+        fi
+        install -m 755 /usr/share/X11/xkb/rules/patch-evdev.sh /usr/share/X11/xkb/rules/
+
+        # Run patcher with error handling
+        if ! /usr/share/X11/xkb/rules/patch-evdev.sh add; then
+            echo "Error: Failed to add keyboard layout" >&2
+            exit 1
+        fi
+
+        # Update XKB registry
+        if command -v dpkg-trigger >/dev/null; then
+            dpkg-trigger --no-await xkb-data-reconfigure || true
+        fi
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

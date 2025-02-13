@@ -1,0 +1,24 @@
+name: Windows Keyboard Layout
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows-keyboard.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows-keyboard.yml'
+
+jobs:
+  # Placeholder for future Windows keyboard layout implementation
+  build:
+    name: Build Layout
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Placeholder step
+        run: echo "Windows keyboard layout implementation pending"

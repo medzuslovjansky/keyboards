@@ -1,0 +1,366 @@
+name: Linux Keyboard Layout
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'linux/**'
+      - '.github/workflows/linux-packages.yml'
+    tags-ignore:
+      - '**'  # Don't trigger on tags since we create them
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'linux/**'
+      - '.github/workflows/linux-packages.yml'
+
+jobs:
+  verify:
+    name: Verify Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        working-directory: linux
+        run: sudo make dependencies
+
+      - name: Run tests
+        working-directory: linux
+        run: make unit-test
+
+  determine-version:
+    name: Determine Version
+    needs: verify
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[no-release]')
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      should_release: ${{ steps.get_version.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate version
+        id: get_version
+        run: |
+          # Get the latest tag if it exists
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+
+          # Get the commit hash of the latest tag
+          latest_tag_commit=$(git rev-list -n 1 "$latest_tag" 2>/dev/null || echo "")
+
+          # Get list of changed files since last tag
+          changed_files=$(git diff --name-only "$latest_tag_commit"..HEAD 2>/dev/null || git ls-files)
+
+          # Check if any linux-related files changed
+          if echo "$changed_files" | grep -q "^linux/"; then
+            # Strip the 'v' prefix and increment the patch version
+            version=$(echo "$latest_tag" | sed 's/v//' | awk -F. '{$NF++;print}' OFS=.)
+            echo "version=v$version" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No linux-related changes detected since last release"
+            echo "version=$latest_tag" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-packages:
+    name: Build Package
+    needs: [verify, determine-version]
+    if: |
+      always() &&
+      needs.verify.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.determine-version.outputs.should_release == 'true')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - name: Debian
+            type: deb
+            container: debian:latest
+            install_cmd: apt-get update && apt-get install -y
+            build_cmd: make package-deb
+            artifact_path: ${{ github.workspace }}/linux/*.deb
+            sign_cmd: |
+              dpkg-sig --sign builder ${{ github.workspace }}/linux/*.deb
+            signing_deps: dpkg-sig
+          - name: Ubuntu
+            type: deb
+            container: ubuntu:latest
+            install_cmd: apt-get update && apt-get install -y
+            build_cmd: make package-deb
+            artifact_path: ${{ github.workspace }}/linux/*.deb
+            sign_cmd: |
+              dpkg-sig --sign builder ${{ github.workspace }}/linux/*.deb
+            signing_deps: dpkg-sig
+          - name: Fedora
+            type: rpm
+            container: fedora:latest
+            install_cmd: dnf install -y
+            build_cmd: make package-rpm
+            artifact_path: ${{ github.workspace }}/linux/rpmbuild/RPMS/noarch/*.rpm
+            sign_cmd: |
+              rpm --addsign ${{ github.workspace }}/linux/rpmbuild/RPMS/noarch/*.rpm
+            signing_deps: rpm-sign
+          - name: Rocky Linux
+            type: rpm
+            container: rockylinux:latest
+            install_cmd: dnf install -y
+            build_cmd: make package-rpm
+            artifact_path: ${{ github.workspace }}/linux/rpmbuild/RPMS/noarch/*.rpm
+            sign_cmd: |
+              rpm --addsign ${{ github.workspace }}/linux/rpmbuild/RPMS/noarch/*.rpm
+            signing_deps: rpm-sign
+
+    container: ${{ matrix.distro.container }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Build Target
+        run: echo "Building package for ${{ matrix.distro.name }}"
+
+      - name: Bootstrap make
+        run: |
+          case "${{ matrix.distro.type }}" in
+            deb)
+              apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y make
+              ;;
+            rpm)
+              dnf install -y make
+              ;;
+          esac
+
+      - name: Install build dependencies
+        working-directory: linux
+        run: make install-build-deps
+
+      - name: Install signing tools
+        if: github.event_name == 'push'
+        run: |
+          case "${{ matrix.distro.type }}" in
+            deb)
+              ${{ matrix.distro.install_cmd }} ${{ matrix.distro.signing_deps }}
+              dpkg-sig --version || { echo "dpkg-sig not found or not working"; exit 1; }
+              ;;
+            rpm)
+              # Ensure rpm-sign is installed even if it wasn't pulled in as a dependency
+              ${{ matrix.distro.install_cmd }} ${{ matrix.distro.signing_deps }}
+              rpm --version || { echo "rpm not found or not working"; exit 1; }
+              # Verify rpm-sign specific functionality
+              rpm --addsign --version 2>/dev/null || { echo "rpm signing capability not available"; exit 1; }
+              ;;
+          esac
+
+      - name: Import GPG key
+        if: github.event_name == 'push'
+        env:
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        run: |
+          echo "$GPG_SIGNING_KEY" | gpg --import
+          # For RPM signing
+          if [ "${{ matrix.distro.type }}" = "rpm" ]; then
+            echo "%_gpg_name Interslavic OSS (Release key)" > ~/.rpmmacros
+          fi
+
+      - name: Build package
+        working-directory: linux
+        run: |
+          VERSION="${{ needs.determine-version.outputs.version }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix
+          ${{ matrix.distro.build_cmd }} VERSION=$VERSION
+
+      - name: Verify package contents
+        run: |
+          case "${{ matrix.distro.type }}" in
+            deb)
+              dpkg -c packages/*.deb | grep -q "usr/share/X11/xkb/symbols/isv" || { echo "Missing keyboard layout file"; exit 1; }
+              dpkg -c packages/*.deb | grep -q "usr/share/X11/xkb/rules/patch-evdev.sh" || { echo "Missing patch script"; exit 1; }
+              dpkg -c packages/*.deb | grep -q "usr/share/X11/xkb/rules/isv.xml" || { echo "Missing layout XML"; exit 1; }
+              ;;
+            rpm)
+              rpm -qlp packages/*.rpm | grep -q "usr/share/X11/xkb/symbols/isv" || { echo "Missing keyboard layout file"; exit 1; }
+              rpm -qlp packages/*.rpm | grep -q "usr/share/X11/xkb/rules/patch-evdev.sh" || { echo "Missing patch script"; exit 1; }
+              rpm -qlp packages/*.rpm | grep -q "usr/share/X11/xkb/rules/isv.xml" || { echo "Missing layout XML"; exit 1; }
+              ;;
+          esac
+
+      - name: Sign package
+        if: github.event_name == 'push'
+        run: |
+          case "${{ matrix.distro.type }}" in
+            deb)
+              dpkg-sig --verify packages/*.deb || true  # Check if already signed
+              ${{ matrix.distro.sign_cmd }}
+              ;;
+            rpm)
+              rpm -K packages/*.rpm || true  # Check if already signed
+              ${{ matrix.distro.sign_cmd }}
+              ;;
+          esac
+
+      - name: Verify package signature
+        if: github.event_name == 'push'
+        run: |
+          case "${{ matrix.distro.type }}" in
+            deb)
+              dpkg-sig --verify packages/*.deb || { echo "Invalid package signature"; exit 1; }
+              ;;
+            rpm)
+              rpm -K packages/*.rpm | grep -q "signatures OK" || { echo "Invalid package signature"; exit 1; }
+              ;;
+          esac
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.distro.type }}-${{ matrix.distro.name }}-package
+          path: ${{ matrix.distro.artifact_path }}
+          retention-days: ${{ github.event_name == 'pull_request' && 1 || 30 }}
+
+  integration-test:
+    name: Integration Test
+    needs: build-packages
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - name: Ubuntu
+            type: deb
+            container: ubuntu:latest
+            deps: xkb-data
+            install_cmd: apt-get update && apt-get install -y
+            pkg_install: dpkg -i
+            pkg_remove: dpkg -r isv-keyboard
+          - name: Debian
+            type: deb
+            container: debian:latest
+            deps: xkb-data
+            install_cmd: apt-get update && apt-get install -y
+            pkg_install: dpkg -i
+            pkg_remove: dpkg -r isv-keyboard
+          - name: Fedora
+            type: rpm
+            container: fedora:latest
+            deps: xorg-x11-xkb-utils
+            install_cmd: dnf install -y
+            pkg_install: rpm -i
+            pkg_remove: rpm -e isv-keyboard
+          - name: Rocky Linux
+            type: rpm
+            container: rockylinux:latest
+            deps: xorg-x11-xkb-utils
+            install_cmd: dnf install -y
+            pkg_install: rpm -i
+            pkg_remove: rpm -e isv-keyboard
+
+    container: ${{ matrix.distro.container }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Test Target
+        run: echo "Testing package for ${{ matrix.distro.name }}"
+
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.distro.type }}-${{ matrix.distro.name }}-package
+          path: packages/
+
+      - name: Install system dependencies
+        run: |
+          ${{ matrix.distro.install_cmd }} ${{ matrix.distro.deps }}
+          # Verify required tools are available
+          command -v xmlstarlet || command -v xml || { echo "xmlstarlet/xml not found"; exit 1; }
+          command -v xkbcomp || { echo "xkbcomp not found"; exit 1; }
+
+      - name: Install keyboard package
+        run: ${{ matrix.distro.pkg_install }} packages/*.${{ matrix.distro.type }}
+
+      - name: Verify layout installation
+        run: |
+          # Check layout file exists
+          test -f /usr/share/X11/xkb/symbols/isv
+          # Check layout is registered (using the script's auto-detection)
+          /usr/share/X11/xkb/rules/patch-evdev.sh verify
+
+      - name: Test uninstallation
+        run: |
+          ${{ matrix.distro.pkg_remove }}
+          # Verify layout is removed and backup handled (using the script's auto-detection)
+          /usr/share/X11/xkb/rules/patch-evdev.sh verify-removed
+
+  create-release:
+    name: Create Release
+    if: |
+      success() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.determine-version.outputs.should_release == 'true'
+    needs: [determine-version, integration-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: packages
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ needs.determine-version.outputs.version }}
+          tag_name: ${{ needs.determine-version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            packages/**/*.deb
+            packages/**/*.rpm
+          body: |
+            ## Medžuslovjansky Keyboard Layout ${{ needs.determine-version.outputs.version }}
+
+            ### Packages
+            - Debian/Ubuntu (.deb)
+            - Fedora/Rocky Linux (.rpm)
+
+            All packages are GPG signed. To verify package signatures:
+
+            #### Debian/Ubuntu
+            ```bash
+            # Import our public key
+            curl -fsSL https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linux/keys/public.gpg | sudo gpg --dearmor -o /usr/share/keyrings/isv-keyboards.gpg
+
+            # Verify .deb signature
+            dpkg-sig --verify isv-keyboard_*.deb
+            ```
+
+            #### Fedora/Rocky Linux
+            ```bash
+            # Import our public key
+            rpm --import https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linux/keys/public.gpg
+
+            # Verify .rpm signature
+            rpm -K isv-keyboard-*.rpm
+            ```
+
+            ### Installation
+
+            #### Debian/Ubuntu
+            ```bash
+            sudo dpkg -i isv-keyboard_*.deb
+            ```
+
+            #### Fedora/Rocky Linux
+            ```bash
+            sudo rpm -i isv-keyboard-*.rpm
+            ```
+
+            For more information, see the [README](https://github.com/medzuslovjansky/keyboards/blob/main/linux/README.md).

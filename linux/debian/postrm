@@ -1,0 +1,52 @@
+#!/bin/sh
+set -e
+
+# Source debconf library if available
+if [ -f /usr/share/debconf/confmodule ]; then
+    . /usr/share/debconf/confmodule
+fi
+
+remove_files() {
+    # Remove layout using patcher
+    if [ -f /usr/share/X11/xkb/rules/patch-evdev.sh ]; then
+        if ! /usr/share/X11/xkb/rules/patch-evdev.sh remove; then
+            echo "Warning: Failed to remove keyboard layout" >&2
+        fi
+        rm -f /usr/share/X11/xkb/rules/patch-evdev.sh
+    fi
+
+    # Remove layout file
+    rm -f /usr/share/X11/xkb/symbols/isv
+
+    # Remove backup if it exists
+    rm -f /usr/share/X11/xkb/rules/evdev.xml.isv.backup
+
+    # Update XKB registry
+    if command -v dpkg-trigger >/dev/null; then
+        dpkg-trigger --no-await xkb-data-reconfigure || true
+    fi
+}
+
+case "$1" in
+    remove|abort-install|disappear)
+        remove_files
+        ;;
+
+    purge)
+        remove_files
+        # Remove any additional configuration files here
+        ;;
+
+    upgrade|failed-upgrade|abort-upgrade)
+        # Don't remove anything during upgrade
+        ;;
+
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

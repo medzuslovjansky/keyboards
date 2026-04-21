@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linu
 dpkg-sig --verify isv-keyboard_*.deb
 ```
 
-### Fedora/Rocky Linux Users
+### Fedora Users
 
 ```bash
 # Import our public key

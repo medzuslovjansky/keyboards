@@ -214,6 +214,7 @@ jobs:
   integration-test:
     name: Integration Test
     needs: build-packages
+    if: always() && needs.build-packages.result == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

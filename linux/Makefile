@@ -76,6 +76,7 @@ dist:
 	rm -rf $(DIST_NAME)
 
 package-deb: test
+	sed -i "1s/^isv-keyboard ([^)]*)/isv-keyboard ($(VERSION)-1)/" debian/changelog
 	dpkg-buildpackage -us -uc
 	mkdir -p packages
 	mv ../isv-keyboard_*.deb packages/

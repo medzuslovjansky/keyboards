@@ -9,8 +9,13 @@ PKG_TYPE := $(shell if [ -n "$$(command -v apt-get 2>/dev/null)" ]; then echo "d
 
 # Dependencies by type
 ifeq ($(PKG_TYPE),deb)
-    RUNTIME_DEPS := xmlstarlet xkbcomp xkb-data
-    BUILD_DEPS := debhelper devscripts gnupg2 $(RUNTIME_DEPS)
+    # GitHub Actions' ubuntu-latest image does not expose `xkbcomp` as
+    # an installable apt package, but ships the binary pre-installed.
+    # `x11-xkb-utils` is always installable and enough for runtime deps.
+    RUNTIME_DEPS := xmlstarlet x11-xkb-utils xkb-data
+    # In clean containers, dpkg-checkbuilddeps needs the xkbcomp package
+    # explicitly (debian/control's Build-Depends lists it by name).
+    BUILD_DEPS := debhelper devscripts gnupg2 xkbcomp $(RUNTIME_DEPS)
 else
     RUNTIME_DEPS := xmlstarlet xkbcomp xkeyboard-config
     BUILD_DEPS := rpm-build rpm-sign gnupg2 make $(RUNTIME_DEPS)

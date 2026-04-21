@@ -222,7 +222,7 @@ jobs:
           - name: Ubuntu
             type: deb
             container: ubuntu:24.04
-            deps: xkb-data xmlstarlet x11-xkb-utils xkbcomp
+            deps: xkb-data xmlstarlet x11-xkb-utils
             install_cmd: apt-get update && apt-get install -y
             pkg_install: dpkg -i
             pkg_remove: dpkg -r isv-keyboard

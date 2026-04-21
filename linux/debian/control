@@ -2,13 +2,13 @@ Source: isv-keyboard
 Section: x11
 Priority: optional
 Maintainer: Interslavic OSS <oss@interslavic.fun>
-Build-Depends: debhelper (>= 9), xmlstarlet | xml-utils, xkbcomp
+Build-Depends: debhelper (>= 9), xmlstarlet | xml-utils, xkbcomp | x11-xkb-utils
 Standards-Version: 3.9.8
 Homepage: https://github.com/medzuslovjansky/keyboards
 
 Package: isv-keyboard
 Architecture: all
-Depends: ${misc:Depends}, xkb-data, xmlstarlet | xml-utils, xkbcomp
+Depends: ${misc:Depends}, xkb-data, xmlstarlet | xml-utils, xkbcomp | x11-xkb-utils
 Description: Interslavic keyboard layout for Linux
  This package provides the Interslavic keyboard layout (Latin and Cyrillic)
  for Linux systems. The layout file is installed into

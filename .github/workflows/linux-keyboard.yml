@@ -83,18 +83,18 @@ jobs:
             container: ubuntu:24.04
             install_cmd: apt-get update && apt-get install -y
             build_cmd: make package-deb
-            artifact_path: ${{ github.workspace }}/linux/packages/*.deb
+            artifact_path: linux/packages/*.deb
             sign_cmd: |
-              dpkg-sig --sign builder ${{ github.workspace }}/linux/packages/*.deb
+              dpkg-sig --sign builder linux/packages/*.deb
             signing_deps: dpkg-sig
           - name: Fedora
             type: rpm
             container: fedora:42
             install_cmd: dnf install -y
             build_cmd: make package-rpm
-            artifact_path: ${{ github.workspace }}/linux/packages/*.rpm
+            artifact_path: linux/packages/*.rpm
             sign_cmd: |
-              rpm --addsign ${{ github.workspace }}/linux/packages/*.rpm
+              rpm --addsign linux/packages/*.rpm
             signing_deps: rpm-sign
 
     container: ${{ matrix.distro.container }}

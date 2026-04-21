@@ -1,16 +1,7 @@
 name: Windows Keyboard Layout
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'windows/**'
-      - '.github/workflows/windows-keyboard.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'windows/**'
-      - '.github/workflows/windows-keyboard.yml'
+  workflow_dispatch:
 
 jobs:
   # Placeholder for future Windows keyboard layout implementation

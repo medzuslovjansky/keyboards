@@ -276,8 +276,12 @@ jobs:
       - name: Test uninstallation
         run: |
           ${{ matrix.distro.pkg_remove }}
-          # Verify layout is removed and backup handled (using the script's auto-detection)
-          /usr/share/X11/xkb/rules/patch-evdev.sh verify-removed
+          # Package files (including the patcher itself) are gone after
+          # uninstall, so run verify-removed from the source checkout.
+          test ! -f /usr/share/X11/xkb/symbols/isv
+          test ! -f /usr/share/X11/xkb/rules/isv.xml
+          test ! -f /usr/share/X11/xkb/rules/patch-evdev.sh
+          bash linux/src/patch-evdev.sh verify-removed
 
   create-release:
     name: Create Release

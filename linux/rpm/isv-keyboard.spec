@@ -10,14 +10,8 @@ URL:            https://github.com/medzuslovjansky/keyboards
 Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      noarch
-# Different distributions package xmlstarlet differently
-%if 0%{?fedora} || 0%{?rhel}
-Requires:       xkeyboard-config, xml, xkbcomp
-BuildRequires:  xkeyboard-config
-%else
 Requires:       xkeyboard-config, xmlstarlet, xkbcomp
 BuildRequires:  xkeyboard-config
-%endif
 
 %description
 This package provides the Interslavic keyboard layout (Latin and Cyrillic)

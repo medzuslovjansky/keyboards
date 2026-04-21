@@ -16,19 +16,17 @@ case "$1" in
             fi
         done
 
-        # Install layout file
+        # Sanity check: files are placed by debian/install during unpack.
         if [ ! -f /usr/share/X11/xkb/symbols/isv ]; then
             echo "Error: Layout file not found" >&2
             exit 1
         fi
-        install -m 644 /usr/share/X11/xkb/symbols/isv /usr/share/X11/xkb/symbols/isv
-
-        # Install and run XML patcher
         if [ ! -f /usr/share/X11/xkb/rules/patch-evdev.sh ]; then
             echo "Error: Patcher script not found" >&2
             exit 1
         fi
-        install -m 755 /usr/share/X11/xkb/rules/patch-evdev.sh /usr/share/X11/xkb/rules/
+        chmod 644 /usr/share/X11/xkb/symbols/isv
+        chmod 755 /usr/share/X11/xkb/rules/patch-evdev.sh
 
         # Run patcher with error handling
         if ! /usr/share/X11/xkb/rules/patch-evdev.sh add; then

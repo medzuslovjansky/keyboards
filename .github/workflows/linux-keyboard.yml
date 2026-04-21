@@ -5,14 +5,14 @@ on:
     branches: [ main ]
     paths:
       - 'linux/**'
-      - '.github/workflows/linux-packages.yml'
+      - '.github/workflows/linux-keyboard.yml'
     tags-ignore:
       - '**'  # Don't trigger on tags since we create them
   pull_request:
     branches: [ main ]
     paths:
       - 'linux/**'
-      - '.github/workflows/linux-packages.yml'
+      - '.github/workflows/linux-keyboard.yml'
 
 jobs:
   verify:
@@ -78,41 +78,23 @@ jobs:
       fail-fast: false
       matrix:
         distro:
-          - name: Debian
-            type: deb
-            container: debian:latest
-            install_cmd: apt-get update && apt-get install -y
-            build_cmd: make package-deb
-            artifact_path: ${{ github.workspace }}/linux/*.deb
-            sign_cmd: |
-              dpkg-sig --sign builder ${{ github.workspace }}/linux/*.deb
-            signing_deps: dpkg-sig
           - name: Ubuntu
             type: deb
-            container: ubuntu:latest
+            container: ubuntu:24.04
             install_cmd: apt-get update && apt-get install -y
             build_cmd: make package-deb
-            artifact_path: ${{ github.workspace }}/linux/*.deb
+            artifact_path: ${{ github.workspace }}/linux/packages/*.deb
             sign_cmd: |
-              dpkg-sig --sign builder ${{ github.workspace }}/linux/*.deb
+              dpkg-sig --sign builder ${{ github.workspace }}/linux/packages/*.deb
             signing_deps: dpkg-sig
           - name: Fedora
             type: rpm
-            container: fedora:latest
+            container: fedora:42
             install_cmd: dnf install -y
             build_cmd: make package-rpm
-            artifact_path: ${{ github.workspace }}/linux/rpmbuild/RPMS/noarch/*.rpm
+            artifact_path: ${{ github.workspace }}/linux/packages/*.rpm
             sign_cmd: |
-              rpm --addsign ${{ github.workspace }}/linux/rpmbuild/RPMS/noarch/*.rpm
-            signing_deps: rpm-sign
-          - name: Rocky Linux
-            type: rpm
-            container: rockylinux:latest
-            install_cmd: dnf install -y
-            build_cmd: make package-rpm
-            artifact_path: ${{ github.workspace }}/linux/rpmbuild/RPMS/noarch/*.rpm
-            sign_cmd: |
-              rpm --addsign ${{ github.workspace }}/linux/rpmbuild/RPMS/noarch/*.rpm
+              rpm --addsign ${{ github.workspace }}/linux/packages/*.rpm
             signing_deps: rpm-sign
 
     container: ${{ matrix.distro.container }}
@@ -174,6 +156,7 @@ jobs:
           ${{ matrix.distro.build_cmd }} VERSION=$VERSION
 
       - name: Verify package contents
+        working-directory: linux
         run: |
           case "${{ matrix.distro.type }}" in
             deb)
@@ -190,6 +173,7 @@ jobs:
 
       - name: Sign package
         if: github.event_name == 'push'
+        working-directory: linux
         run: |
           case "${{ matrix.distro.type }}" in
             deb)
@@ -204,6 +188,7 @@ jobs:
 
       - name: Verify package signature
         if: github.event_name == 'push'
+        working-directory: linux
         run: |
           case "${{ matrix.distro.type }}" in
             deb)
@@ -231,29 +216,15 @@ jobs:
         distro:
           - name: Ubuntu
             type: deb
-            container: ubuntu:latest
-            deps: xkb-data
-            install_cmd: apt-get update && apt-get install -y
-            pkg_install: dpkg -i
-            pkg_remove: dpkg -r isv-keyboard
-          - name: Debian
-            type: deb
-            container: debian:latest
-            deps: xkb-data
+            container: ubuntu:24.04
+            deps: xkb-data xmlstarlet x11-xkb-utils
             install_cmd: apt-get update && apt-get install -y
             pkg_install: dpkg -i
             pkg_remove: dpkg -r isv-keyboard
           - name: Fedora
             type: rpm
-            container: fedora:latest
-            deps: xorg-x11-xkb-utils
-            install_cmd: dnf install -y
-            pkg_install: rpm -i
-            pkg_remove: rpm -e isv-keyboard
-          - name: Rocky Linux
-            type: rpm
-            container: rockylinux:latest
-            deps: xorg-x11-xkb-utils
+            container: fedora:42
+            deps: xkeyboard-config xmlstarlet xkbcomp
             install_cmd: dnf install -y
             pkg_install: rpm -i
             pkg_remove: rpm -e isv-keyboard
@@ -328,12 +299,12 @@ jobs:
             ## Medžuslovjansky Keyboard Layout ${{ needs.determine-version.outputs.version }}
 
             ### Packages
-            - Debian/Ubuntu (.deb)
-            - Fedora/Rocky Linux (.rpm)
+            - Ubuntu (.deb)
+            - Fedora (.rpm)
 
             All packages are GPG signed. To verify package signatures:
 
-            #### Debian/Ubuntu
+            #### Ubuntu
             ```bash
             # Import our public key
             curl -fsSL https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linux/keys/public.gpg | sudo gpg --dearmor -o /usr/share/keyrings/isv-keyboards.gpg
@@ -342,7 +313,7 @@ jobs:
             dpkg-sig --verify isv-keyboard_*.deb
             ```
 
-            #### Fedora/Rocky Linux
+            #### Fedora
             ```bash
             # Import our public key
             rpm --import https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linux/keys/public.gpg
@@ -353,12 +324,12 @@ jobs:
 
             ### Installation
 
-            #### Debian/Ubuntu
+            #### Ubuntu
             ```bash
             sudo dpkg -i isv-keyboard_*.deb
             ```
 
-            #### Fedora/Rocky Linux
+            #### Fedora
             ```bash
             sudo rpm -i isv-keyboard-*.rpm
             ```

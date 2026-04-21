@@ -12,7 +12,7 @@ ifeq ($(PKG_TYPE),deb)
     RUNTIME_DEPS := xmlstarlet x11-xkb-utils
     BUILD_DEPS := debhelper devscripts gnupg2 $(RUNTIME_DEPS)
 else
-    RUNTIME_DEPS := xmlstarlet xorg-x11-xkb-utils
+    RUNTIME_DEPS := xmlstarlet xkbcomp
     BUILD_DEPS := rpm-build rpm-sign gnupg2 make $(RUNTIME_DEPS)
 endif
 
@@ -71,8 +71,15 @@ dist:
 
 package-deb: test
 	dpkg-buildpackage -us -uc
+	mkdir -p packages
+	mv ../isv-keyboard_*.deb packages/
 
 package-rpm: test dist
-	mkdir -p ~/rpmbuild/SOURCES
-	cp $(DIST_NAME).tar.gz ~/rpmbuild/SOURCES/
-	rpmbuild -ba rpm/isv-keyboard.spec
+	mkdir -p rpmbuild/SOURCES
+	cp $(DIST_NAME).tar.gz rpmbuild/SOURCES/
+	rpmbuild -ba \
+		--define "_topdir $(CURDIR)/rpmbuild" \
+		--define "build_version $(VERSION)" \
+		rpm/isv-keyboard.spec
+	mkdir -p packages
+	cp rpmbuild/RPMS/noarch/*.rpm packages/

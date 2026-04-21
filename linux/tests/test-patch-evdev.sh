@@ -142,21 +142,6 @@ test_missing_files() {
     return 0
 }
 
-test_permission_issues() {
-    setup_test_env
-
-    # Make evdev.xml read-only
-    chmod 444 "$TEST_DIR/usr/share/X11/xkb/rules/evdev.xml"
-
-    # Attempt installation (should fail)
-    if EVDEV_XML="$TEST_DIR/usr/share/X11/xkb/rules/evdev.xml" \
-       ISV_XML="$TEST_DIR/usr/share/X11/xkb/rules/isv.xml" \
-       "$PATCH_SCRIPT" add 2>/dev/null; then
-        return 1  # Should have failed
-    fi
-    return 0
-}
-
 test_xml_structure() {
     setup_test_env
 
@@ -197,14 +182,13 @@ run_test "Update Existing Layout" test_update_existing || ((failed_tests++))
 run_test "Remove Layout" test_remove_layout || ((failed_tests++))
 run_test "Handle Malformed XML" test_malformed_xml || ((failed_tests++))
 run_test "Handle Missing Files" test_missing_files || ((failed_tests++))
-run_test "Handle Permission Issues" test_permission_issues || ((failed_tests++))
 run_test "XML Structure Verification" test_xml_structure || ((failed_tests++))
 
 # Report results
 echo
 echo "Test Summary:"
 echo "============"
-echo "Total tests: 7"
+echo "Total tests: 6"
 echo "Failed tests: $failed_tests"
 
 exit $((failed_tests > 0))

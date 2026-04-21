@@ -1,5 +1,7 @@
+%{!?build_version: %define build_version 1.0}
+
 Name:           isv-keyboard
-Version:        1.0
+Version:        %{build_version}
 Release:        1%{?dist}
 Summary:        Interslavic keyboard layout for Linux
 

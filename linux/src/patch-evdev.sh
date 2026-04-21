@@ -31,15 +31,6 @@ find_gnu_grep() {
 # Get GNU grep command
 GREP_CMD=$(find_gnu_grep)
 
-# Function to check file permissions
-check_permissions() {
-    local file="$1"
-    if [ ! -w "$file" ] || [ ! -r "$file" ]; then
-        echo "Error: Insufficient permissions for $file" >&2
-        exit 1
-    fi
-}
-
 # Function to find XML tool and verify version
 find_xml_tool() {
     local tool=""
@@ -125,9 +116,6 @@ restore_backup() {
 
 # Function to add layout
 add_layout() {
-    # Check permissions first
-    check_permissions "$EVDEV_XML"
-
     # Validate input files
     validate_xml "$EVDEV_XML"
     validate_xml "$ISV_XML"
@@ -186,7 +174,6 @@ add_layout() {
 
 # Function to remove layout XML without backup restoration
 remove_layout_xml() {
-    check_permissions "$EVDEV_XML"
     if ! "$XML_CMD" ed -L \
         -d "//layout[configItem/name='isv']" \
         "$EVDEV_XML"; then

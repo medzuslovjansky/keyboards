@@ -126,7 +126,6 @@ jobs:
         run: make install-build-deps
 
       - name: Install signing tools
-        if: github.event_name == 'push'
         run: |
           case "${{ matrix.distro.type }}" in
             deb)
@@ -142,15 +141,29 @@ jobs:
               ;;
           esac
 
-      - name: Import GPG key
-        if: github.event_name == 'push'
+      - name: Import or generate GPG key
         env:
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
         run: |
-          echo "$GPG_SIGNING_KEY" | gpg --import
-          # For RPM signing
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "$GPG_SIGNING_KEY" | gpg --import
+            KEY_NAME="Interslavic OSS (Release key)"
+          else
+            # PR runs sign with a throwaway key so the full pipeline is exercised.
+            gpg --batch --generate-key <<'EOF'
+          %no-protection
+          Key-Type: RSA
+          Key-Length: 2048
+          Name-Real: Interslavic OSS Developer Preview
+          Name-Comment: self-signed, not for production
+          Name-Email: dev-preview@interslavic.fun
+          Expire-Date: 1d
+          %commit
+          EOF
+            KEY_NAME="Interslavic OSS Developer Preview"
+          fi
           if [ "${{ matrix.distro.type }}" = "rpm" ]; then
-            echo "%_gpg_name Interslavic OSS (Release key)" > ~/.rpmmacros
+            echo "%_gpg_name $KEY_NAME" > ~/.rpmmacros
           fi
 
       - name: Build package
@@ -177,7 +190,6 @@ jobs:
           esac
 
       - name: Sign package
-        if: github.event_name == 'push'
         working-directory: linux
         run: |
           case "${{ matrix.distro.type }}" in
@@ -192,7 +204,6 @@ jobs:
           esac
 
       - name: Verify package signature
-        if: github.event_name == 'push'
         working-directory: linux
         run: |
           case "${{ matrix.distro.type }}" in

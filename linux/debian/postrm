@@ -1,0 +1,42 @@
+#!/bin/sh
+set -e
+
+# Source debconf library if available
+if [ -f /usr/share/debconf/confmodule ]; then
+    . /usr/share/debconf/confmodule
+fi
+
+remove_files() {
+    # The layout un-patching is done in prerm (patch-evdev.sh is gone
+    # by the time postrm runs). Here we only clean up leftovers that
+    # dpkg does not own: the evdev.xml backup.
+    rm -f /usr/share/X11/xkb/rules/evdev.xml.isv.backup
+
+    if command -v dpkg-trigger >/dev/null; then
+        dpkg-trigger --no-await xkb-data-reconfigure || true
+    fi
+}
+
+case "$1" in
+    remove|abort-install|disappear)
+        remove_files
+        ;;
+
+    purge)
+        remove_files
+        # Remove any additional configuration files here
+        ;;
+
+    upgrade|failed-upgrade|abort-upgrade)
+        # Don't remove anything during upgrade
+        ;;
+
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

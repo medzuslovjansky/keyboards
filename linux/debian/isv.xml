@@ -1,0 +1,25 @@
+    <layout>
+      <configItem>
+        <name>isv</name>
+        <!-- Keyboard indicator for Interslavic layouts -->
+        <shortDescription>isv</shortDescription>
+        <description>Interslavic</description>
+        <languageList>
+          <iso639Id>isv</iso639Id>
+        </languageList>
+      </configItem>
+      <variantList>
+        <variant>
+          <configItem>
+            <name>latin</name>
+            <description>Interslavic (Latin)</description>
+          </configItem>
+        </variant>
+        <variant>
+         <configItem>
+            <name>cyrillic</name>
+            <description>Interslavic (Cyrillic)</description>
+          </configItem>
+        </variant>
+      </variantList>
+    </layout>

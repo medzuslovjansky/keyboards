@@ -1,0 +1,4 @@
+src/isv usr/share/X11/xkb/symbols/
+src/patch-evdev.sh usr/share/X11/xkb/rules/
+debian/isv.xml usr/share/X11/xkb/rules/
+debian/isv.lst usr/share/X11/xkb/rules/

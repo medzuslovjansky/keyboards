@@ -1,0 +1,21 @@
+name: Android Keyboard Layout
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # Placeholder for future Android keyboard layout implementation
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Placeholder step
+        run: echo "Android keyboard layout implementation pending"

@@ -1,0 +1,15 @@
+name: Windows Keyboard Layout
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # Placeholder for future Windows keyboard layout implementation
+  build:
+    name: Build Layout
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Placeholder step
+        run: echo "Windows keyboard layout implementation pending"

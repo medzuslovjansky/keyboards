@@ -2,7 +2,7 @@ Source: isv-keyboard
 Section: x11
 Priority: optional
 Maintainer: Interslavic OSS <oss@interslavic.fun>
-Build-Depends: debhelper (>= 9), xmlstarlet | xml-utils, xkbcomp | x11-xkb-utils
+Build-Depends: debhelper-compat (= 13), xmlstarlet | xml-utils, xkbcomp | x11-xkb-utils
 Standards-Version: 3.9.8
 Homepage: https://github.com/medzuslovjansky/keyboards
 

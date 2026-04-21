@@ -167,18 +167,24 @@ jobs:
             KEY_NAME="Interslavic OSS Developer Preview"
           fi
           if [ "${{ matrix.distro.type }}" = "rpm" ]; then
-            # rpm --addsign shells out to gpg via %__gpg_sign_cmd, which on
-            # Fedora 42 has no --batch/--pinentry-mode. In CI (no tty, no
-            # agent) that silently produces an empty signature. Force
-            # loopback mode so signing works with our passphrase-less keys.
+            # rpm --addsign shells out to gpg via %__gpg_sign_cmd. On
+            # Fedora 42 the default template doesn't pass --batch /
+            # --pinentry-mode, so in CI (no tty, no running agent) it
+            # silently produces an empty signature. Override the whole
+            # command and force loopback mode. Works for our
+            # passphrase-less keys (both the release key and the
+            # ephemeral PR key).
             mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
-            echo "pinentry-mode loopback"     >  ~/.gnupg/gpg.conf
-            echo "allow-loopback-pinentry"    >  ~/.gnupg/gpg-agent.conf
+            echo "pinentry-mode loopback"  > ~/.gnupg/gpg.conf
+            echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
             gpgconf --kill gpg-agent || true
             {
               echo "%_gpg_name $KEY_NAME"
-              echo "%_gpg_sign_cmd_extra_args --batch --pinentry-mode loopback --no-tty"
+              echo '%__gpg_sign_cmd /usr/bin/gpg --batch --no-verbose --no-armor --no-secmem-warning --pinentry-mode loopback --passphrase "" -u "%{_gpg_name}" -sbo %{__signature_filename} %{__plaintext_filename}'
             } > ~/.rpmmacros
+            # Confirm gpg itself can produce a signature without a tty
+            # before handing off to rpm — surfaces a clearer error.
+            echo test | gpg --batch --pinentry-mode loopback --passphrase "" --armor --detach-sign -u "$KEY_NAME" > /dev/null
           fi
 
       - name: Build package
@@ -227,6 +233,7 @@ jobs:
               done
               ;;
             rpm)
+              rpm -Kv packages/*.rpm
               rpm -K packages/*.rpm | grep -q "signatures OK" || { echo "Invalid package signature"; exit 1; }
               ;;
           esac

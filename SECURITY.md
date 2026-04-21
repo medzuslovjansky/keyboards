@@ -19,12 +19,11 @@ Always verify the signature of downloaded packages:
 
 #### Debian/Ubuntu
 ```bash
-# Import our public key
-curl -fsSL https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linux/keys/public.gpg | \
-  sudo gpg --dearmor -o /usr/share/keyrings/isv-keyboards.gpg
+# Import our public key into your GnuPG keyring
+curl -fsSL https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linux/keys/public.gpg | gpg --import
 
-# Verify package
-dpkg-sig --verify isv-keyboard_*.deb
+# Verify the detached .deb signature (download both the .deb and the .deb.asc)
+gpg --verify isv-keyboard_*.deb.asc isv-keyboard_*.deb
 ```
 
 #### Fedora/Rocky Linux

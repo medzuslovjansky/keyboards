@@ -83,10 +83,13 @@ jobs:
             container: ubuntu:24.04
             install_cmd: apt-get update && apt-get install -y
             build_cmd: make package-deb
-            artifact_path: linux/packages/*.deb
+            artifact_path: |
+              linux/packages/*.deb
+              linux/packages/*.deb.asc
             sign_cmd: |
-              dpkg-sig --sign builder linux/packages/*.deb
-            signing_deps: dpkg-sig
+              for deb in packages/*.deb; do
+                gpg --batch --yes --armor --detach-sign "$deb"
+              done
           - name: Fedora
             type: rpm
             container: fedora:42
@@ -94,7 +97,7 @@ jobs:
             build_cmd: make package-rpm
             artifact_path: linux/packages/*.rpm
             sign_cmd: |
-              rpm --addsign linux/packages/*.rpm
+              rpm --addsign packages/*.rpm
             signing_deps: rpm-sign
 
     container: ${{ matrix.distro.container }}
@@ -129,8 +132,9 @@ jobs:
         run: |
           case "${{ matrix.distro.type }}" in
             deb)
-              ${{ matrix.distro.install_cmd }} ${{ matrix.distro.signing_deps }}
-              dpkg-sig --version || { echo "dpkg-sig not found or not working"; exit 1; }
+              # deb signing uses detached gpg signatures; gnupg2 is already
+              # installed via BUILD_DEPS, nothing else to pull in.
+              gpg --version || { echo "gpg not available"; exit 1; }
               ;;
             rpm)
               # Ensure rpm-sign is installed even if it wasn't pulled in as a dependency
@@ -194,7 +198,6 @@ jobs:
         run: |
           case "${{ matrix.distro.type }}" in
             deb)
-              dpkg-sig --verify packages/*.deb || true  # Check if already signed
               ${{ matrix.distro.sign_cmd }}
               ;;
             rpm)
@@ -208,7 +211,9 @@ jobs:
         run: |
           case "${{ matrix.distro.type }}" in
             deb)
-              dpkg-sig --verify packages/*.deb || { echo "Invalid package signature"; exit 1; }
+              for deb in packages/*.deb; do
+                gpg --verify "$deb.asc" "$deb" || { echo "Invalid signature on $deb"; exit 1; }
+              done
               ;;
             rpm)
               rpm -K packages/*.rpm | grep -q "signatures OK" || { echo "Invalid package signature"; exit 1; }
@@ -322,6 +327,7 @@ jobs:
           prerelease: false
           files: |
             packages/**/*.deb
+            packages/**/*.deb.asc
             packages/**/*.rpm
           body: |
             ## Medžuslovjansky Keyboard Layout ${{ needs.determine-version.outputs.version }}
@@ -334,11 +340,11 @@ jobs:
 
             #### Ubuntu
             ```bash
-            # Import our public key
-            curl -fsSL https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linux/keys/public.gpg | sudo gpg --dearmor -o /usr/share/keyrings/isv-keyboards.gpg
+            # Import our public key into your GnuPG keyring
+            curl -fsSL https://raw.githubusercontent.com/medzuslovjansky/keyboards/main/linux/keys/public.gpg | gpg --import
 
-            # Verify .deb signature
-            dpkg-sig --verify isv-keyboard_*.deb
+            # Verify the detached .deb signature
+            gpg --verify isv-keyboard_*.deb.asc isv-keyboard_*.deb
             ```
 
             #### Fedora

@@ -185,6 +185,11 @@ jobs:
             # Confirm gpg itself can produce a signature without a tty
             # before handing off to rpm — surfaces a clearer error.
             echo test | gpg --batch --pinentry-mode loopback --passphrase "" --armor --detach-sign -u "$KEY_NAME" > /dev/null
+            # rpm keeps its own keyring separate from GnuPG's; import the
+            # public key so `rpm -K` can verify the signature instead of
+            # reporting NOKEY.
+            gpg --armor --export "$KEY_NAME" > /tmp/rpm-pubkey.asc
+            rpm --import /tmp/rpm-pubkey.asc
           fi
 
       - name: Build package

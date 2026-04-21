@@ -1,15 +1,154 @@
 name: macOS Keyboard Layout
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'mac/**'
+      - '.github/workflows/macos-keyboard.yml'
+    tags-ignore:
+      - '**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'mac/**'
+      - '.github/workflows/macos-keyboard.yml'
 
 jobs:
-  # Placeholder for future macOS keyboard layout implementation
-  validate:
-    name: Validate Layout
-    runs-on: macos-latest
+  verify:
+    name: Verify Sources
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v5
 
-      - name: Placeholder step
-        run: echo "macOS keyboard layout implementation pending"
+      - name: Sanity-check sources
+        working-directory: mac
+        run: make test
+
+  determine-version:
+    name: Determine Version
+    needs: verify
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[no-release]')
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      should_release: ${{ steps.get_version.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Generate version
+        id: get_version
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          latest_tag_commit=$(git rev-list -n 1 "$latest_tag" 2>/dev/null || echo "")
+          changed_files=$(git diff --name-only "$latest_tag_commit"..HEAD 2>/dev/null || git ls-files)
+          if echo "$changed_files" | grep -q "^mac/"; then
+            version=$(echo "$latest_tag" | sed 's/v//' | awk -F. '{$NF++;print}' OFS=.)
+            echo "version=v$version" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No mac-related changes detected since last release"
+            echo "version=$latest_tag" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-dmg:
+    name: Build DMG
+    needs: [verify, determine-version]
+    if: |
+      always() &&
+      needs.verify.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.determine-version.outputs.should_release == 'true')
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build DMG
+        working-directory: mac
+        run: |
+          VERSION="${{ needs.determine-version.outputs.version }}"
+          VERSION="${VERSION#v}"
+          make package-dmg VERSION="$VERSION"
+
+      - name: Verify DMG contents
+        working-directory: mac
+        run: |
+          DMG=$(ls packages/*.dmg | head -1)
+          MOUNT_OUTPUT=$(hdiutil attach -nobrowse -readonly "$DMG")
+          echo "$MOUNT_OUTPUT"
+          VOLUME=$(echo "$MOUNT_OUTPUT" | awk -F'\t' '/\/Volumes\// {print $NF; exit}')
+          trap 'hdiutil detach "$VOLUME" >/dev/null || true' EXIT
+          test -d "$VOLUME/Interslavic (ABC).bundle" || { echo "Missing bundle in DMG"; exit 1; }
+          test -f "$VOLUME/Interslavic (ABC).bundle/Contents/Info.plist" || { echo "Missing Info.plist"; exit 1; }
+          test -f "$VOLUME/Interslavic (ABC).bundle/Contents/Resources/Interslavic (ABC).keylayout" || { echo "Missing keylayout"; exit 1; }
+          plutil -lint "$VOLUME/Interslavic (ABC).bundle/Contents/Info.plist"
+          test -L "$VOLUME/Keyboard Layouts" || { echo "Missing install-target symlink"; exit 1; }
+
+      - name: Code-sign bundle
+        if: env.MAC_DEVELOPER_ID_P12 != ''
+        env:
+          MAC_DEVELOPER_ID_P12: ${{ secrets.MAC_DEVELOPER_ID_P12 }}
+          MAC_DEVELOPER_ID_PASSWORD: ${{ secrets.MAC_DEVELOPER_ID_PASSWORD }}
+          MAC_DEVELOPER_IDENTITY: ${{ secrets.MAC_DEVELOPER_IDENTITY }}
+        run: |
+          echo "Code-signing scaffold — requires Apple Developer ID. Skipped until secrets are configured."
+          # Future implementation:
+          # 1. security create-keychain + import P12
+          # 2. codesign --sign "$MAC_DEVELOPER_IDENTITY" --deep mac/build/*.bundle
+          # 3. re-build DMG
+          # 4. xcrun notarytool submit ... --wait
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: macos-dmg
+          path: mac/packages/*.dmg
+          retention-days: ${{ github.event_name == 'pull_request' && 1 || 30 }}
+
+  create-release:
+    name: Create Release
+    if: |
+      success() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.determine-version.outputs.should_release == 'true'
+    needs: [determine-version, build-dmg]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download DMG
+        uses: actions/download-artifact@v5
+        with:
+          name: macos-dmg
+          path: packages
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ needs.determine-version.outputs.version }}
+          tag_name: ${{ needs.determine-version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            packages/*.dmg
+          body: |
+            ## Medžuslovjansky Keyboard Layout ${{ needs.determine-version.outputs.version }}
+
+            ### macOS
+            - `interslavic-abc-*.dmg` — Interslavic (ABC) Latin layout
+
+            ### Installation
+
+            1. Download the `.dmg` and open it.
+            2. Drag `Interslavic (ABC).bundle` onto the `Keyboard Layouts` shortcut inside the DMG.
+            3. Log out and back in.
+            4. **System Settings → Keyboard → Text Input → Input Sources → + → Other** — select *Interslavic (ABC)*.
+
+            The DMG is currently unsigned. On first install macOS may show a Gatekeeper warning; right-click the bundle → Open to approve.
+
+            For more information, see the [README](https://github.com/medzuslovjansky/keyboards/blob/main/mac/README.md).

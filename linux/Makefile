@@ -9,10 +9,10 @@ PKG_TYPE := $(shell if [ -n "$$(command -v apt-get 2>/dev/null)" ]; then echo "d
 
 # Dependencies by type
 ifeq ($(PKG_TYPE),deb)
-    RUNTIME_DEPS := xmlstarlet x11-xkb-utils
+    RUNTIME_DEPS := xmlstarlet x11-xkb-utils xkb-data
     BUILD_DEPS := debhelper devscripts gnupg2 $(RUNTIME_DEPS)
 else
-    RUNTIME_DEPS := xmlstarlet xkbcomp
+    RUNTIME_DEPS := xmlstarlet xkbcomp xkeyboard-config
     BUILD_DEPS := rpm-build rpm-sign gnupg2 make $(RUNTIME_DEPS)
 endif
 

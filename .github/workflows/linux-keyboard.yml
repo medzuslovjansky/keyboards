@@ -19,7 +19,7 @@ jobs:
     name: Verify Code
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install dependencies
         working-directory: linux
@@ -38,7 +38,7 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
       should_release: ${{ steps.get_version.outputs.should_release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -100,7 +100,7 @@ jobs:
     container: ${{ matrix.distro.container }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Show Build Target
         run: echo "Building package for ${{ matrix.distro.name }}"
@@ -200,7 +200,7 @@ jobs:
           esac
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.distro.type }}-${{ matrix.distro.name }}-package
           path: ${{ matrix.distro.artifact_path }}
@@ -232,13 +232,13 @@ jobs:
     container: ${{ matrix.distro.container }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Show Test Target
         run: echo "Testing package for ${{ matrix.distro.name }}"
 
       - name: Download package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ${{ matrix.distro.type }}-${{ matrix.distro.name }}-package
           path: packages/
@@ -278,15 +278,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: packages
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ needs.determine-version.outputs.version }}
           tag_name: ${{ needs.determine-version.outputs.version }}

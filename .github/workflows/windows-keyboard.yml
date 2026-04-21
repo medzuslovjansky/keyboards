@@ -18,7 +18,7 @@ jobs:
     name: Build Layout
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Placeholder step
         run: echo "Windows keyboard layout implementation pending"

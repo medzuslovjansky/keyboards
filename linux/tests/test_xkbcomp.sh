@@ -33,52 +33,31 @@ if [ ! -d "./src" ]; then
     exit 1
 fi
 
-log "Testing raw symbols file syntax..."
-if OUTPUT=$(xkbcomp -o /dev/null -I./src -xkb -a -synch './src/isv(latin)' 2>&1); then
-    log "Test passed: Raw symbols file syntax is valid." "$GREEN"
-else
-    log "Test failed: Raw symbols file syntax check failed:" "$RED"
-    log "$OUTPUT" "$RED"
-    exit 1
-fi
+compile_variant() {
+    local variant="$1"
+    local keymap="$TMPDIR/test-$variant.xkb"
 
-log "Testing Latin variant integration..."
-cat > "$TMPDIR/test-latin.xkb" << 'EOF'
+    cat > "$keymap" <<EOF
 xkb_keymap {
     xkb_keycodes  { include "evdev+aliases(qwerty)" };
     xkb_types     { include "complete" };
     xkb_compat    { include "complete" };
-    xkb_symbols   { include "pc+isv(latin)" };
+    xkb_symbols   { include "pc+isv($variant)" };
     xkb_geometry  { include "pc(pc105)" };
 };
 EOF
 
-if OUTPUT=$(xkbcomp -I./src -w 0 "$TMPDIR/test-latin.xkb" "$TMPDIR/test-latin.xkm" 2>&1); then
-    log "Test passed: Latin variant compiles successfully." "$GREEN"
-else
-    log "Test failed: Latin variant compilation failed:" "$RED"
-    log "$OUTPUT" "$RED"
-    exit 1
-fi
+    log "Testing $variant variant integration..."
+    if xkbcomp -I./src -w 0 "$keymap" "$TMPDIR/test-$variant.xkm"; then
+        log "Test passed: $variant variant compiles successfully." "$GREEN"
+    else
+        log "Test failed: $variant variant compilation failed." "$RED"
+        exit 1
+    fi
+}
 
-log "Testing Cyrillic variant integration..."
-cat > "$TMPDIR/test-cyrillic.xkb" << 'EOF'
-xkb_keymap {
-    xkb_keycodes  { include "evdev+aliases(qwerty)" };
-    xkb_types     { include "complete" };
-    xkb_compat    { include "complete" };
-    xkb_symbols   { include "pc+isv(cyrillic)" };
-    xkb_geometry  { include "pc(pc105)" };
-};
-EOF
-
-if OUTPUT=$(xkbcomp -I./src -w 0 "$TMPDIR/test-cyrillic.xkb" "$TMPDIR/test-cyrillic.xkm" 2>&1); then
-    log "Test passed: Cyrillic variant compiles successfully." "$GREEN"
-else
-    log "Test failed: Cyrillic variant compilation failed:" "$RED"
-    log "$OUTPUT" "$RED"
-    exit 1
-fi
+compile_variant latin
+compile_variant cyrillic
 
 log "All XKB syntax tests passed!" "$GREEN"
 exit 0

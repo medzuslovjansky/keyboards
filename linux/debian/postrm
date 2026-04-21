@@ -7,21 +7,11 @@ if [ -f /usr/share/debconf/confmodule ]; then
 fi
 
 remove_files() {
-    # Remove layout using patcher
-    if [ -f /usr/share/X11/xkb/rules/patch-evdev.sh ]; then
-        if ! /usr/share/X11/xkb/rules/patch-evdev.sh remove; then
-            echo "Warning: Failed to remove keyboard layout" >&2
-        fi
-        rm -f /usr/share/X11/xkb/rules/patch-evdev.sh
-    fi
-
-    # Remove layout file
-    rm -f /usr/share/X11/xkb/symbols/isv
-
-    # Remove backup if it exists
+    # The layout un-patching is done in prerm (patch-evdev.sh is gone
+    # by the time postrm runs). Here we only clean up leftovers that
+    # dpkg does not own: the evdev.xml backup.
     rm -f /usr/share/X11/xkb/rules/evdev.xml.isv.backup
 
-    # Update XKB registry
     if command -v dpkg-trigger >/dev/null; then
         dpkg-trigger --no-await xkb-data-reconfigure || true
     fi

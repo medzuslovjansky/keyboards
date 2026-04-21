@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+
+# dpkg removes files AFTER postrm runs — by the time postrm is reached,
+# patch-evdev.sh is already gone, so we can't use it to un-patch
+# evdev.xml. Do it here, before the package's files are unlinked.
+
+case "$1" in
+    remove|deconfigure|upgrade)
+        if [ -x /usr/share/X11/xkb/rules/patch-evdev.sh ]; then
+            /usr/share/X11/xkb/rules/patch-evdev.sh remove || \
+                echo "Warning: failed to remove keyboard layout from evdev.xml" >&2
+        fi
+        ;;
+    failed-upgrade)
+        ;;
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

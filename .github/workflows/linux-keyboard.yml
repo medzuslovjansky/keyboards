@@ -109,7 +109,12 @@ jobs:
         run: |
           case "${{ matrix.distro.type }}" in
             deb)
-              apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y make
+              # Ubuntu's official Docker image ships with only main+restricted
+              # enabled; xkbcomp lives in universe.
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y make software-properties-common
+              add-apt-repository -y universe
+              apt-get update
               ;;
             rpm)
               dnf install -y make
@@ -217,7 +222,7 @@ jobs:
           - name: Ubuntu
             type: deb
             container: ubuntu:24.04
-            deps: xkb-data xmlstarlet x11-xkb-utils
+            deps: xkb-data xmlstarlet x11-xkb-utils xkbcomp
             install_cmd: apt-get update && apt-get install -y
             pkg_install: dpkg -i
             pkg_remove: dpkg -r isv-keyboard
@@ -245,8 +250,15 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          case "${{ matrix.distro.type }}" in
+            deb)
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common
+              add-apt-repository -y universe
+              apt-get update
+              ;;
+          esac
           ${{ matrix.distro.install_cmd }} ${{ matrix.distro.deps }}
-          # Verify required tools are available
           command -v xmlstarlet || command -v xml || { echo "xmlstarlet/xml not found"; exit 1; }
           command -v xkbcomp || { echo "xkbcomp not found"; exit 1; }
 

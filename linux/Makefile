@@ -1,6 +1,9 @@
 .PHONY: all test package-deb package-rpm dependencies unit-test dist check-deps install-build-deps install-runtime-deps
 
-VERSION := $(if $(strip $(VERSION)),$(VERSION),1.0)
+# `override` is needed because the CI passes VERSION= (empty) on
+# pull_request events, and command-line assignments normally win
+# over `:=` — without override, the default never kicks in.
+override VERSION := $(if $(strip $(VERSION)),$(VERSION),1.0)
 DIST_NAME = isv-keyboard-$(VERSION)
 
 # Package manager detection

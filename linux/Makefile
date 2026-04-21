@@ -1,6 +1,6 @@
 .PHONY: all test package-deb package-rpm dependencies unit-test dist check-deps install-build-deps install-runtime-deps
 
-VERSION ?= 1.0
+VERSION := $(if $(strip $(VERSION)),$(VERSION),1.0)
 DIST_NAME = isv-keyboard-$(VERSION)
 
 # Package manager detection
@@ -9,7 +9,7 @@ PKG_TYPE := $(shell if [ -n "$$(command -v apt-get 2>/dev/null)" ]; then echo "d
 
 # Dependencies by type
 ifeq ($(PKG_TYPE),deb)
-    RUNTIME_DEPS := xmlstarlet x11-xkb-utils xkb-data
+    RUNTIME_DEPS := xmlstarlet xkbcomp xkb-data
     BUILD_DEPS := debhelper devscripts gnupg2 $(RUNTIME_DEPS)
 else
     RUNTIME_DEPS := xmlstarlet xkbcomp xkeyboard-config

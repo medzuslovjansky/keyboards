@@ -33,9 +33,15 @@ if [ ! -d "./src" ]; then
     exit 1
 fi
 
+# xkbcomp resolves `include "pc+isv(...)"` by looking for files in
+# <include-path>/symbols/. Mirror that layout in $TMPDIR.
+mkdir -p "$TMPDIR/symbols"
+cp ./src/isv "$TMPDIR/symbols/isv"
+
 compile_variant() {
     local variant="$1"
     local keymap="$TMPDIR/test-$variant.xkb"
+    local output rc
 
     cat > "$keymap" <<EOF
 xkb_keymap {
@@ -48,12 +54,16 @@ xkb_keymap {
 EOF
 
     log "Testing $variant variant integration..."
-    if xkbcomp -I./src -w 0 "$keymap" "$TMPDIR/test-$variant.xkm"; then
-        log "Test passed: $variant variant compiles successfully." "$GREEN"
-    else
+    output=$(xkbcomp -I"$TMPDIR" -w 0 "$keymap" "$TMPDIR/test-$variant.xkm" 2>&1)
+    rc=$?
+    [ -n "$output" ] && echo "$output"
+    # xkbcomp sometimes exits 0 even when it printed "Error:" lines
+    # (e.g. missing include files), so explicitly inspect the output.
+    if [ $rc -ne 0 ] || printf '%s\n' "$output" | grep -q '^Error:'; then
         log "Test failed: $variant variant compilation failed." "$RED"
         exit 1
     fi
+    log "Test passed: $variant variant compiles successfully." "$GREEN"
 }
 
 compile_variant latin

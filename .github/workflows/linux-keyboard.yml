@@ -167,7 +167,18 @@ jobs:
             KEY_NAME="Interslavic OSS Developer Preview"
           fi
           if [ "${{ matrix.distro.type }}" = "rpm" ]; then
-            echo "%_gpg_name $KEY_NAME" > ~/.rpmmacros
+            # rpm --addsign shells out to gpg via %__gpg_sign_cmd, which on
+            # Fedora 42 has no --batch/--pinentry-mode. In CI (no tty, no
+            # agent) that silently produces an empty signature. Force
+            # loopback mode so signing works with our passphrase-less keys.
+            mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+            echo "pinentry-mode loopback"     >  ~/.gnupg/gpg.conf
+            echo "allow-loopback-pinentry"    >  ~/.gnupg/gpg-agent.conf
+            gpgconf --kill gpg-agent || true
+            {
+              echo "%_gpg_name $KEY_NAME"
+              echo "%_gpg_sign_cmd_extra_args --batch --pinentry-mode loopback --no-tty"
+            } > ~/.rpmmacros
           fi
 
       - name: Build package
